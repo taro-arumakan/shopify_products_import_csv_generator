@@ -75,41 +75,49 @@ function createProductDescription(description, productCare, material, sizeTable,
 
 function createHtmlTableFromDynamicText(text) {
   const lines = text.trim().split('\n');
-  const headings = ['サイズ'];
+  const headings = [''];
   const rows = [];
 
-  lines.forEach((line) => {
-    // Check for the size and value format
-    const parts = line.match(/\[(\w+)\]\s*(.*)/);
+  lines.forEach((line, index) => {
+    const parts = line.match(/\[(\w+)\]\s*(.*)/); // Check for the size and value format
     if (!parts) {
-      // Skip if parts are not found
-      return;
+      return; // Skip if parts are not found
     }
 
     const size = parts[1];
-    const values = parts[2].match(/(\S+\s+\d+\.?\d*)/g);
+    const values = parts[2].match(/(\D+\s*\d+\.?\d*)/g);
 
     if (headings.length === 1 && values) {
       // Extract headings from values
       values.forEach(value => {
-        const heading = value.split(/\s+/)[0];
-        if (!headings.includes(heading)) {
+        const heading = value.match(/^\D+/)?.[0]?.replace('/', '').trim();
+        if (heading && !headings.includes(heading)) {
           headings.push(heading);
         }
       });
     }
 
-    const row = [size];
-    headings.slice(1).forEach(heading => {
-      const value = values.find(v => v.startsWith(heading));
-      row.push(value ? value.split(/\s+/)[1] : '');
-    });
-    rows.push(row);
+    if (values) {
+      const row = [size];
+      values.forEach(value => {
+        const valueParts = value.match(/(\D+)\s*(\d+\.?\d*)/);
+        if (valueParts) {
+          const numericValue = valueParts[2];
+          row.push(numericValue);
+        }
+      });
+
+      // Fill remaining columns if row length is less than headings
+      while (row.length < headings.length) {
+        row.push('');
+      }
+      rows.push(row);
+    }
   });
 
   // Handle case where rows might be empty
   if (rows.length === 0) {
-    return '<p>No size data available.</p>';
+    return `<p>サイズ: ${text}</p>`;
   }
 
   let table = '<table><thead><tr>';
@@ -128,4 +136,3 @@ function createHtmlTableFromDynamicText(text) {
 
   return table;
 }
-
