@@ -1,18 +1,18 @@
 // Column indexes, 0 base
 const columnIndexes = {
-  description: 15, // Column P
-  productCare: 17, // Column R
-  material: 18, // Column S
-  sizeTable: 19, // Column T
-  title: 2, // Column C
-  option1Value: 3, // Column D
-  option2Value: 4, // Column E
-  variantSku: 5, // Column F
-  variantInventoryQty: 11, // Column L
-  variantPrice: 10, // Column K
-  madeIn: 20, // Column U
-  category: 4, // Column G
-  collection: 5 // column H
+  title: 2,                 // Column C
+  option1Value: 3,          // Column D
+  option2Value: 4,          // Column E
+  variantSku: 5,            // Column F
+  category: 6,              // Column G
+  collection: 7,            // Column H
+  variantPrice: 10,         // Column K
+  variantInventoryQty: 11,  // Column L
+  description: 15,          // Column P
+  productCare: 17,          // Column R
+  material: 18,             // Column S
+  sizeTable: 19,            // Column T
+  madeIn: 20,               // Column U
 };
 
  // Column indexes, 1 base
@@ -50,21 +50,17 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
 
     const handle = '=googletranslate(B' + (i + 2 - headerRowsToSkip) + ',"ja","en")';
     const title = getCellValue(sourceSheet, i + 1, columnIndexes.title + 1);
-    Logger.log(`${new Date(new Date().getTime()).toISOString()} processing ${title}`);
+    Logger.log(`${new Date(new Date().getTime()).toISOString()} --- processing ${title}`);
 
     // Get merged values
-    Logger.log(`${new Date(new Date().getTime()).toISOString()} processing ${title} - option1Value`);
     const option1Value = getCellValue(sourceSheet, i + 1, columnIndexes.option1Value + 1);
-    Logger.log(`${new Date(new Date().getTime()).toISOString()} processing ${title} - description`);
     const description = getCellValue(sourceSheet, i + 1, columnIndexes.description + 1);
-    Logger.log(`${new Date(new Date().getTime()).toISOString()} processing ${title} - productCare`);
     const productCare = getCellValue(sourceSheet, i + 1, columnIndexes.productCare + 1);
-    Logger.log(`${new Date(new Date().getTime()).toISOString()} processing ${title} - material`);
     const material = getCellValue(sourceSheet, i + 1, columnIndexes.material + 1);
-    Logger.log(`${new Date(new Date().getTime()).toISOString()} processing ${title} - size`);
     const sizeTableText = getCellValue(sourceSheet, i + 1, columnIndexes.sizeTable + 1);
-    Logger.log(`${new Date(new Date().getTime()).toISOString()} processing ${title} - Made In`);
     const madeIn = getCellValue(sourceSheet, i + 1, columnIndexes.madeIn + 1);
+    const category = getCellValue(sourceSheet, i + 1, columnIndexes.category + 1);
+    const collection = getCellValue(sourceSheet, i + 1, columnIndexes.collection + 1);
 
     Logger.log(`${new Date(new Date().getTime()).toISOString()} caching description`);
 
@@ -85,7 +81,7 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
 
     Logger.log(`${new Date(new Date().getTime()).toISOString()} done generating body html`);
 
-    const tags = row[columnIndexes.category + 1] + ', ' + row[columnIndexes.collection + 1]; // Column F & G
+    const tags = `${category}, ${collection}`;
     const variantSku = row[columnIndexes.variantSku];
     const variantInventoryQty = row[columnIndexes.variantInventoryQty];
     const variantPrice = row[columnIndexes.variantPrice];
@@ -98,7 +94,7 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
     ];
     csvData.push(csvRow);
 
-    Logger.log(`${new Date(new Date().getTime()).toISOString()} done adding a csv row`);
+    Logger.log(`${new Date(new Date().getTime()).toISOString()} --- done adding a csv row`);
   }
 
   const newSheetName = 'Product Import CSV';
