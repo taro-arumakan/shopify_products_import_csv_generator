@@ -66,7 +66,7 @@ function createProductDescription(description, productCare, material, sizeTable,
   const populatedTemplate = template
     .replace(/\${DESCRIPTION}/g, replaceNewlines(escapeHtml(description)))
     .replace(/\${PRODUCTCARE}/g, replaceNewlines(escapeHtml(productCare)))
-    .replace(/\${MATERIAL}/g, escapeHtml(material))
+    .replace(/\${MATERIAL}/g, replaceNewlines(escapeHtml(material)))
     .replace(/\${SIZE_TABLE}/g, sizeTable) // Assuming sizeTable is HTML and doesn't need escaping
     .replace(/\${MADEIN}/g, escapeHtml(madeIn));
   
