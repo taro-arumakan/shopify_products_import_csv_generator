@@ -1,7 +1,26 @@
-const activateProducts = true;
+const activateProducts = false;
+const vendor = 'GBH'
+
+const gbhColumIndexes = {
+  releaseDate: 1,           // Column B
+  collection: 2,            // Column C
+  category: 3,              // Column D
+  category2: 4,             // Column E
+  title: 5,                 // Column F
+  option1Value: 6,          // Column G
+  option2Value: 7,          // Column H
+  variantSku: 8,            // Column I
+  variantPrice: 11,         // Column L
+  variantInventoryQty: 12,  // Column M
+  description: 16,          // Column Q
+  productCare: 18,          // Column S
+  sizeTable: 20,            // Column U
+  material: 21,             // Column V
+  madeIn: 22,               // Column W
+}
 
 // Column indexes, 0 base
-const columnIndexes = {
+const kumeColumnIndexes = {
   releaseDate: 1,           // Column B
   title: 2,                 // Column C
   option1Value: 3,          // Column D
@@ -18,7 +37,9 @@ const columnIndexes = {
   madeIn: 21,               // Column V
 };
 
- // Column indexes, 1 base
+const columnIndexes = vendor == 'GBH' ? gbhColumIndexes : kumeColumnIndexes;
+
+// Column indexes, 1 base
 const columnsFromLastAvalableValue = [
   3,
   4
@@ -46,7 +67,6 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
 
   const descriptionCache = new Map();
   const sizeTableCache = new Map();
-  const lastValueCache = new Map(); // Key: column index, Value: last non-empty value
 
   for (let i = headerRowsToSkip; i < data.length; i++) {
     const row = data[i];
@@ -62,8 +82,15 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
     const material = getCellValue(sourceSheet, i + 1, columnIndexes.material + 1);
     const sizeTableText = getCellValue(sourceSheet, i + 1, columnIndexes.sizeTable + 1);
     const madeIn = getCellValue(sourceSheet, i + 1, columnIndexes.madeIn + 1);
-    const releaseDate = getCellValue(sourceSheet, i + 1, columnIndexes.releaseDate + 1);
-    const category = getCellValue(sourceSheet, i + 1, columnIndexes.category + 1);
+    let releaseDate = getCellValue(sourceSheet, i + 1, columnIndexes.releaseDate + 1)
+    if (releaseDate instanceof Date) {
+      releaseDate = releaseDate.toLocaleDateString();
+    }
+    let category = getCellValue(sourceSheet, i + 1, columnIndexes.category + 1);
+    if (columnIndexes.category2) {
+      const category2 = getCellValue(sourceSheet, i + 1, columnIndexes.category2 + 1);
+      category = `${category}, ${category2}`;
+    }
     const collection = getCellValue(sourceSheet, i + 1, columnIndexes.collection + 1);
 
     Logger.log(`${new Date(new Date().getTime()).toISOString()} caching description`);
@@ -85,12 +112,14 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
 
     Logger.log(`${new Date(new Date().getTime()).toISOString()} done generating body html`);
 
+    let tags;
+    let status;
     if (activateProducts) {
-      const tags = `${category}, ${collection}`;
-      const status = 'active';
+      tags = `${category}, ${collection}`;
+      status = 'active';
     } else {
-      const tags = `${releaseDate}, ${category}, ${collection}`;
-      const status = 'draft';
+      tags = `${releaseDate}, ${category}, ${collection}`;
+      status = 'draft';
     }
     const variantSku = row[columnIndexes.variantSku];
     const variantInventoryQty = row[columnIndexes.variantInventoryQty];
@@ -99,7 +128,7 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
 
     Logger.log(`${new Date(new Date().getTime()).toISOString()} adding a csv row`);
     const csvRow = [
-      handle, title, bodyHtml, 'KUME', tags, 'True', 'カラー', option1Value, 'サイズ', option2Value, variantSku, 'shopify',
+      handle, title, bodyHtml, vendor, tags, 'True', 'カラー', option1Value.trim(), 'サイズ', option2Value.trim(), variantSku.trim(), 'shopify',
       variantInventoryQty, 'deny', 'manual', variantPrice, 'True', 'True', status
     ];
     csvData.push(csvRow);
