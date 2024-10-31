@@ -56,83 +56,65 @@ function createProductDescription(description, productCare, material, sizeTable,
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   };
-  
+
   // Replace newline characters with <br>
   const replaceNewlines = (text) => {
     return text.replace(/\n/g, '<br>\n');
   };
-  
+
   // Replace placeholders with actual content
   const populatedTemplate = template
     .replace(/\${DESCRIPTION}/g, replaceNewlines(escapeHtml(description)))
     .replace(/\${PRODUCTCARE}/g, replaceNewlines(escapeHtml(productCare)))
     .replace(/\${MATERIAL}/g, replaceNewlines(escapeHtml(material)))
-    .replace(/\${SIZE_TABLE}/g, sizeTable) // Assuming sizeTable is HTML and doesn't need escaping
-    .replace(/\${MADEIN}/g, escapeHtml(madeIn));
-  
+    .replace(/\${SIZE_TABLE}/g, sizeTable) // sizeTable is already HTML
+    .replace(/\${MADEIN}/g, replaceNewlines(escapeHtml(madeIn)));
+
   return populatedTemplate;
 }
 
-function createHtmlTableFromDynamicText(text) {
-  const lines = text.trim().split('\n');
-  const headings = [''];
-  const rows = [];
+function createHtmlTableFromDynamicText(sizeData) {
+  if (!sizeData || sizeData.length === 0) return '';
 
-  lines.forEach((line, index) => {
-    const parts = line.match(/\[(\w+)\]\s*(.*)/); // Check for the size and value format
-    if (!parts) {
-      return; // Skip if parts are not found
+  const headersSet = new Set();
+  const sizeMeasurementsMap = new Map();
+
+  // Regex to match label and measurement pairs
+  const regex = /([^\d\s]+)\s*(\d+(\.\d+)?)/g;
+
+  // Process each entry in sizeData
+  sizeData.forEach(({ sizeLabel, sizeMeasurement }) => {
+    const measurements = {};
+    let match;
+
+    // Extract label and measurements from the sizeMeasurement text
+    while ((match = regex.exec(sizeMeasurement)) !== null) {
+      const label = match[1];
+      const measurement = match[2];
+      headersSet.add(label);            // Collect unique headers
+      measurements[label] = measurement; // Map label to measurement
     }
 
-    const size = parts[1];
-    const values = parts[2].match(/(\D+\s*\d+\.?\d*)/g);
-
-    if (headings.length === 1 && values) {
-      // Extract headings from values
-      values.forEach(value => {
-        const heading = value.match(/^\D+/)?.[0]?.replace('/', '').trim();
-        if (heading && !headings.includes(heading)) {
-          headings.push(heading);
-        }
-      });
-    }
-
-    if (values) {
-      const row = [size];
-      values.forEach(value => {
-        const valueParts = value.match(/(\D+)\s*(\d+\.?\d*)/);
-        if (valueParts) {
-          const numericValue = valueParts[2];
-          row.push(numericValue);
-        }
-      });
-
-      // Fill remaining columns if row length is less than headings
-      while (row.length < headings.length) {
-        row.push('');
-      }
-      rows.push(row);
-    }
+    sizeMeasurementsMap.set(sizeLabel, measurements);
   });
 
-  // Handle case where rows might be empty
-  if (rows.length === 0) {
-    return `<p>サイズ: ${text}</p>`;
-  }
+  // Generate the table with headers from headersSet and data from sizeMeasurementsMap
+  const headers = Array.from(headersSet);
+  let tableHtml = '<table><thead><tr><th></th>';
 
-  let table = '<table><thead><tr>';
-  headings.forEach(heading => {
-    table += `<th>${heading}</th>`;
+  headers.forEach(header => {
+    tableHtml += `<th>${header}</th>`;
   });
-  table += '</tr></thead><tbody>';
-  rows.forEach(row => {
-    table += '<tr>';
-    row.forEach(cell => {
-      table += `<td>${cell}</td>`;
+  tableHtml += '</tr></thead><tbody>';
+
+  sizeMeasurementsMap.forEach((measurements, sizeLabel) => {
+    tableHtml += `<tr><td>${sizeLabel}</td>`;
+    headers.forEach(header => {
+      tableHtml += `<td>${measurements[header] || ''}</td>`;
     });
-    table += '</tr>';
+    tableHtml += '</tr>';
   });
-  table += '</tbody></table>';
 
-  return table;
+  tableHtml += '</tbody></table>';
+  return tableHtml;
 }

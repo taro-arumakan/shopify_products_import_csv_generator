@@ -45,6 +45,53 @@ const columnsFromLastAvalableValue = [
   4
 ]
 
+function populateProductDescription(sourceSheet, headerRowsToSkip) {
+  productDescriptionMap = {};
+  const data = sourceSheet.getDataRange().getValues();
+  let sizeData = {};
+  for (let i = headerRowsToSkip; i < data.length; i++) {
+    const row = data[i];
+    const title = getCellValue(sourceSheet, i + 1, columnIndexes.title + 1);
+    const variantSize = row[columnIndexes.option2Value].trim();
+    // Get merged values
+    const option1Value = getCellValue(sourceSheet, i + 1, columnIndexes.option1Value + 1);
+    const sizeTableText = getCellValue(sourceSheet, i + 1, columnIndexes.sizeTable + 1);
+    const category = getCellValue(sourceSheet, i + 1, columnIndexes.category + 1);
+    const collection = getCellValue(sourceSheet, i + 1, columnIndexes.collection + 1);
+
+    // Use a "Set" approach to store unique size measurements per product
+    if (!sizeData[title]) {
+      sizeData[title] = [];
+    }
+    if (sizeTableText) {
+      sizeData[title].push({ sizeLabel: variantSize, sizeMeasurement: sizeTableText });
+    }
+
+    // Process the product once all its rows are handled
+    const nextRow = data[i + 1] || [];
+    const nextTitle = nextRow[columnIndexes.title];
+    const isLastVariant = !nextTitle || nextTitle !== title;
+    let bodyHtml = '';
+    if (isLastVariant) {
+      // Combine unique sizes and measurements into a single text
+      const sizeTableHtml = createHtmlTableFromDynamicText(sizeData[title]);
+      console.log(sizeTableHtml);
+
+      // Get product-level fields for the description
+      const description = getCellValue(sourceSheet, i + 1, columnIndexes.description + 1);
+      const productCare = getCellValue(sourceSheet, i + 1, columnIndexes.productCare + 1);
+      const material = getCellValue(sourceSheet, i + 1, columnIndexes.material + 1);
+      const madeIn = getCellValue(sourceSheet, i + 1, columnIndexes.madeIn + 1);
+
+      // Create description HTML with the consolidated size table
+      const descriptionHtml = createProductDescription(description, productCare, material, sizeTableHtml, madeIn);
+
+      productDescriptionMap[title] = descriptionHtml;
+    }
+  }
+  return productDescriptionMap;
+}
+
 function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
   Logger.log(`${new Date(new Date().getTime()).toISOString()} starting to process ${sourceSheetName}`);
   const sourceSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sourceSheetName);
@@ -56,7 +103,6 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
   const data = sourceSheet.getDataRange().getValues();
   const csvData = [];
 
-  // CSV header
   const csvHeader = [
     'Handle', 'Title', 'Body (HTML)', 'Vendor', 'Tags', 'Published', 'Option1 Name',
     'Option1 Value', 'Option2 Name', 'Option2 Value', 'Variant SKU', 'Variant Inventory Tracker', 'Variant Inventory Qty',
@@ -65,75 +111,46 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
   ];
   csvData.push(csvHeader);
 
-  const descriptionCache = new Map();
-  const sizeTableCache = new Map();
+  const productDescriptionMap = populateProductDescription(sourceSheet, headerRowsToSkip);
 
   for (let i = headerRowsToSkip; i < data.length; i++) {
     const row = data[i];
-
     const handle = '=googletranslate(B' + (i + 2 - headerRowsToSkip) + ',"ja","en")';
     const title = getCellValue(sourceSheet, i + 1, columnIndexes.title + 1);
+
+    if (!title) {
+      throw new Error('no title');
+    }
+
+    const variantSize = row[columnIndexes.option2Value].trim();
     Logger.log(`${new Date(new Date().getTime()).toISOString()} --- processing ${title}`);
 
     // Get merged values
     const option1Value = getCellValue(sourceSheet, i + 1, columnIndexes.option1Value + 1);
-    const description = getCellValue(sourceSheet, i + 1, columnIndexes.description + 1);
-    const productCare = getCellValue(sourceSheet, i + 1, columnIndexes.productCare + 1);
-    const material = getCellValue(sourceSheet, i + 1, columnIndexes.material + 1);
-    const sizeTableText = getCellValue(sourceSheet, i + 1, columnIndexes.sizeTable + 1);
-    const madeIn = getCellValue(sourceSheet, i + 1, columnIndexes.madeIn + 1);
-    let releaseDate = getCellValue(sourceSheet, i + 1, columnIndexes.releaseDate + 1)
-    if (releaseDate instanceof Date) {
-      releaseDate = releaseDate.toLocaleDateString();
-    }
-    let category = getCellValue(sourceSheet, i + 1, columnIndexes.category + 1);
-    if (columnIndexes.category2) {
-      const category2 = getCellValue(sourceSheet, i + 1, columnIndexes.category2 + 1);
-      category = `${category}, ${category2}`;
-    }
+    const category = getCellValue(sourceSheet, i + 1, columnIndexes.category + 1);
     const collection = getCellValue(sourceSheet, i + 1, columnIndexes.collection + 1);
 
-    Logger.log(`${new Date(new Date().getTime()).toISOString()} caching description`);
-
-    // Generate HTML for description and size table, avoid duplication
-    const descriptionHtml = descriptionCache.has(description)
-      ? descriptionCache.get(description)
-      : createProductDescription(description, productCare, material, createHtmlTableFromDynamicText(sizeTableText), madeIn);
-    descriptionCache.set(description, descriptionHtml);
-
-    Logger.log(`${new Date(new Date().getTime()).toISOString()} caching size table`);
-
-    const sizeTableHtml = sizeTableCache.has(sizeTableText)
-      ? sizeTableCache.get(sizeTableText)
-      : createHtmlTableFromDynamicText(sizeTableText);
-    sizeTableCache.set(sizeTableText, sizeTableHtml);
-
-    const bodyHtml = descriptionHtml;
-
-    Logger.log(`${new Date(new Date().getTime()).toISOString()} done generating body html`);
-
+    bodyHtml = productDescriptionMap[title];
     let tags;
     let status;
     if (activateProducts) {
       tags = `${category}, ${collection}`;
       status = 'active';
     } else {
+      const releaseDate = getCellValue(sourceSheet, i + 1, columnIndexes.releaseDate + 1).replace('\n', '');
       tags = `${releaseDate}, ${category}, ${collection}`;
       status = 'draft';
     }
+
     const variantSku = row[columnIndexes.variantSku];
     const variantInventoryQty = row[columnIndexes.variantInventoryQty];
     const variantPrice = row[columnIndexes.variantPrice];
-    const option2Value = row[columnIndexes.option2Value];
 
-    Logger.log(`${new Date(new Date().getTime()).toISOString()} adding a csv row`);
     const csvRow = [
-      handle, title, bodyHtml, vendor, tags, 'True', 'カラー', option1Value.trim(), 'サイズ', option2Value.trim(), variantSku.trim(), 'shopify',
-      variantInventoryQty, 'deny', 'manual', variantPrice, 'True', 'True', status
+      handle, title, bodyHtml, vendor, tags, 'True', 'カラー', option1Value.trim(), 'サイズ', variantSize.trim(),
+      variantSku.trim(), 'shopify', variantInventoryQty, 'deny', 'manual', variantPrice, 'True', 'True', status
     ];
     csvData.push(csvRow);
-
-    Logger.log(`${new Date(new Date().getTime()).toISOString()} --- done adding a csv row`);
   }
 
   const newSheetName = 'Product Import CSV';
