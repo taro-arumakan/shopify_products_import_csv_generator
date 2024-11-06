@@ -1,4 +1,4 @@
-const activateProducts = false;
+const activateProducts = true;
 const vendor = 'GBH'
 
 const gbhColumIndexes = {
@@ -127,7 +127,10 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
 
     // Get merged values
     const option1Value = getCellValue(sourceSheet, i + 1, columnIndexes.option1Value + 1);
-    const category = getCellValue(sourceSheet, i + 1, columnIndexes.category + 1);
+    let category = getCellValue(sourceSheet, i + 1, columnIndexes.category + 1);
+    if (columnIndexes.category2) {
+        category = `${category}, ${getCellValue(sourceSheet, i + 1, columnIndexes.category2 + 1)}`;
+    }
     const collection = getCellValue(sourceSheet, i + 1, columnIndexes.collection + 1);
 
     bodyHtml = productDescriptionMap[title];
@@ -141,6 +144,7 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
       tags = `${releaseDate}, ${category}, ${collection}`;
       status = 'draft';
     }
+    tags = `${tags}, new`;
 
     const variantSku = row[columnIndexes.variantSku];
     const variantInventoryQty = row[columnIndexes.variantInventoryQty];
