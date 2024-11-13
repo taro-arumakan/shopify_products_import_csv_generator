@@ -1,5 +1,5 @@
-const activateProducts = false;
-const vendor = 'GBH'
+const activateProducts = true;
+const vendor = 'alvana'     // alvana, KUME, GBH
 
 const gbhColumIndexes = {
   releaseDate: 1,           // Column B
@@ -37,7 +37,30 @@ const kumeColumnIndexes = {
   madeIn: 21,               // Column V
 };
 
-const columnIndexes = vendor == 'GBH' ? gbhColumIndexes : kumeColumnIndexes;
+// Column indexes, 0 base
+const alvanaColumnIndexes = {
+  // releaseDate: 14,          // Column O
+  title: 1,                 // Column B
+  option1Value: 9,          // Column J, Color
+  option2Value: 11,         // Column L, Size
+  variantSku: 12,           // Column M
+  category: 2,              // Column C
+  // collection: 7,            // Column H
+  variantPrice: 3,          // Column D
+  variantInventoryQty: 13,  // Column N
+  description: 4,           // Column E
+  productCare: 5,           // Column F
+  material: 6,              // Column G
+  sizeTable: 7,             // Column H
+  madeIn: 8,                // Column I
+};
+
+const columnIndexesMap = {
+  'GBH': gbhColumIndexes,
+  'KUME': kumeColumnIndexes,
+  'alvana': alvanaColumnIndexes
+}
+const columnIndexes = columnIndexesMap[vendor]
 
 // Column indexes, 1 base
 const columnsFromLastAvalableValue = [
@@ -51,13 +74,15 @@ function populateProductDescription(sourceSheet, headerRowsToSkip) {
   let sizeData = {};
   for (let i = headerRowsToSkip; i < data.length; i++) {
     const row = data[i];
+    const variantSku = row[columnIndexes.variantSku];
+    if (!variantSku) {
+      console.log(`populateProductDescription - breaking at row: ${i}`);
+      break
+    }
     const title = getCellValue(sourceSheet, i + 1, columnIndexes.title + 1);
-    const variantSize = row[columnIndexes.option2Value].trim();
+    const variantSize = String(row[columnIndexes.option2Value]).trim();
     // Get merged values
-    const option1Value = getCellValue(sourceSheet, i + 1, columnIndexes.option1Value + 1);
     const sizeTableText = getCellValue(sourceSheet, i + 1, columnIndexes.sizeTable + 1);
-    const category = getCellValue(sourceSheet, i + 1, columnIndexes.category + 1);
-    const collection = getCellValue(sourceSheet, i + 1, columnIndexes.collection + 1);
 
     // Use a "Set" approach to store unique size measurements per product
     if (!sizeData[title]) {
@@ -71,7 +96,6 @@ function populateProductDescription(sourceSheet, headerRowsToSkip) {
     const nextRow = data[i + 1] || [];
     const nextTitle = nextRow[columnIndexes.title];
     const isLastVariant = !nextTitle || nextTitle !== title;
-    let bodyHtml = '';
     if (isLastVariant) {
       // Combine unique sizes and measurements into a single text
       const sizeTableHtml = createHtmlTableFromDynamicText(sizeData[title]);
@@ -111,8 +135,10 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
   ];
   csvData.push(csvHeader);
 
+  console.log(`Populating product description map first`);
   const productDescriptionMap = populateProductDescription(sourceSheet, headerRowsToSkip);
 
+  console.log(`Starting to process each product`);
   for (let i = headerRowsToSkip; i < data.length; i++) {
     const row = data[i];
     const handle = '=googletranslate(B' + (i + 2 - headerRowsToSkip) + ',"ja","en")';
@@ -122,29 +148,38 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
       throw new Error('no title');
     }
 
-    const variantSize = row[columnIndexes.option2Value].trim();
+    const variantSize = String(row[columnIndexes.option2Value]).trim();
     Logger.log(`${new Date(new Date().getTime()).toISOString()} --- processing ${title}`);
 
     // Get merged values
     const option1Value = getCellValue(sourceSheet, i + 1, columnIndexes.option1Value + 1);
-    const category = getCellValue(sourceSheet, i + 1, columnIndexes.category + 1);
-    const collection = getCellValue(sourceSheet, i + 1, columnIndexes.collection + 1);
+    let tags;     // category, category2, and collection
+    tags = getCellValue(sourceSheet, i + 1, columnIndexes.category + 1);
+    if (columnIndexes.category2) {
+      tags = `${tags}, ${getCellValue(sourceSheet, i + 1, columnIndexes.category2 + 1)}`;
+    }
+    if (columnIndexes.collection) {
+      tags = `${tags}, ${getCellValue(sourceSheet, i + 1, columnIndexes.collection + 1)}`;    
+    }
 
     bodyHtml = productDescriptionMap[title];
-    let tags;
     let status;
     if (activateProducts) {
-      tags = `${category}, ${collection}`;
       status = 'active';
     } else {
-      const releaseDate = getCellValue(sourceSheet, i + 1, columnIndexes.releaseDate + 1).replace('\n', '');
-      tags = `${releaseDate}, ${category}, ${collection}`;
+      if (columnIndexes.releaseDate) {
+        tags = `${tags}, ${getCellValue(sourceSheet, i + 1, columnIndexes.releaseDate + 1).replace('\n', '')}`;
+      }
       status = 'draft';
     }
 
     const variantSku = row[columnIndexes.variantSku];
+    if (!variantSku) {
+      console.log(`breaking at row: ${i}`);
+      break
+    }
     const variantInventoryQty = row[columnIndexes.variantInventoryQty];
-    const variantPrice = row[columnIndexes.variantPrice];
+    const variantPrice = getCellValue(sourceSheet, i + 1, columnIndexes.variantPrice + 1);
 
     const csvRow = [
       handle, title, bodyHtml, vendor, tags, 'True', 'カラー', option1Value.trim(), 'サイズ', variantSize.trim(),

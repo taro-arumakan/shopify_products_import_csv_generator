@@ -38,7 +38,7 @@ function getCellValue(sheet, row, col) {
       lastValueCache.set(col, value);
     }
   }
-  Logger.log(`${new Date().toISOString()} returning a value for ${row}, ${col}`);
+  Logger.log(`${new Date().toISOString()} returning a value for ${row}, ${col}: ${value}`);
   return value;
 }
 
