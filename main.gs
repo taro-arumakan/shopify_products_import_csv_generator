@@ -172,6 +172,7 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
       }
       status = 'draft';
     }
+    tags = `${tags}, new`;
 
     const variantSku = row[columnIndexes.variantSku];
     if (!variantSku) {

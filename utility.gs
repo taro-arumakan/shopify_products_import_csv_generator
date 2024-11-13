@@ -38,6 +38,10 @@ function getCellValue(sheet, row, col) {
       lastValueCache.set(col, value);
     }
   }
+  if (value instanceof Date) {
+    // Swedish locale returns YYYY-MM-DD
+    value = value.toLocaleDateString('sv-SE');
+  }
   Logger.log(`${new Date().toISOString()} returning a value for ${row}, ${col}: ${value}`);
   return value;
 }
