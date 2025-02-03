@@ -84,7 +84,7 @@ function createHtmlTableFromDynamicText(sizeData) {
   const sizeMeasurementsMap = new Map();
 
   // Regex to match label and measurement pairs
-  const regex = /([^\d\s]+)\s*(\d+(\.\d+)?)/g;
+  const regex = /([^\d\n]+?)\)?\s*(\d+(?:\.\d+)?(?:cm|g)?)|(\d+(?:\.\d+)?g)$/gi;
 
   // Process each entry in sizeData
   sizeData.forEach(({ sizeLabel, sizeMeasurement }) => {
@@ -93,18 +93,20 @@ function createHtmlTableFromDynamicText(sizeData) {
 
     // Extract label and measurements from the sizeMeasurement text
     while ((match = regex.exec(sizeMeasurement)) !== null) {
-      const label = match[1];
-      const measurement = match[2];
-      headersSet.add(label);            // Collect unique headers
-      measurements[label] = measurement; // Map label to measurement
+      const label = match[1]?.trim() || 'weight';   // Default to 'weight' if no label
+      const measurement = match[2] || match[3];     // Use either labeled or standalone value
+      headersSet.add(label);
+      measurements[label] = measurement;
     }
-
-    sizeMeasurementsMap.set(sizeLabel, measurements);
+    sizeMeasurementsMap.set(sizeLabel || '', measurements);
   });
 
   // Generate the table with headers from headersSet and data from sizeMeasurementsMap
   const headers = Array.from(headersSet);
-  let tableHtml = '<table><thead><tr><th></th>';
+  let tableHtml = '<table><thead><tr>';
+  if (sizeMeasurementsMap.keys().next().value) {
+    tableHtml += '<th></th>';
+  }
 
   headers.forEach(header => {
     tableHtml += `<th>${header}</th>`;
@@ -112,7 +114,10 @@ function createHtmlTableFromDynamicText(sizeData) {
   tableHtml += '</tr></thead><tbody>';
 
   sizeMeasurementsMap.forEach((measurements, sizeLabel) => {
-    tableHtml += `<tr><td>${sizeLabel}</td>`;
+    tableHtml += `<tr>`;
+    if (sizeLabel) {
+      tableHtml += `<td>${sizeLabel}</td>`;
+    }
     headers.forEach(header => {
       tableHtml += `<td>${measurements[header] || ''}</td>`;
     });
