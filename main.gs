@@ -1,5 +1,5 @@
-const activateProducts = true;
-const vendor = 'alvana'     // alvana, KUME, GBH
+const activateProducts = false;
+const vendor = 'rohseoul'     // alvana, KUME, GBH, rohseoul
 
 const gbhColumIndexes = {
   releaseDate: 1,           // Column B
@@ -55,10 +55,30 @@ const alvanaColumnIndexes = {
   madeIn: 8,                // Column I
 };
 
+// Column indexes, 0 base
+const rohseoulColumnIndexes = {
+  releaseDate: 2,           // Column C
+  title: 3,                 // Column D
+  variantSku: 4,            // Column E
+  collection: 5,            // Column F
+  category: 6,              // Column G
+  category2: 7,             // Column H
+  option1Value: 8,          // Column I, Color
+  // option2Value: 11,         // Column L, Size
+  variantPrice: 11,         // Column L
+  variantInventoryQty: 12,  // Column M
+  description: 16,          // Column Q
+  sizeTable: 19,            // Column T
+  material: 20,             // Column U
+  madeIn: 21,               // Column V
+  // productCare: 5,           // Column F
+};
+
 const columnIndexesMap = {
   'GBH': gbhColumIndexes,
   'KUME': kumeColumnIndexes,
-  'alvana': alvanaColumnIndexes
+  'alvana': alvanaColumnIndexes,
+  'rohseoul': rohseoulColumnIndexes
 }
 const columnIndexes = columnIndexesMap[vendor]
 
@@ -80,7 +100,10 @@ function populateProductDescription(sourceSheet, headerRowsToSkip) {
       break
     }
     const title = getCellValue(sourceSheet, i + 1, columnIndexes.title + 1);
-    const variantSize = String(row[columnIndexes.option2Value]).trim();
+    let variantSize = "";
+    if (columnIndexes.option2Value) {
+      variantSize = String(row[columnIndexes.option2Value]).trim();
+    }
     // Get merged values
     const sizeTableText = getCellValue(sourceSheet, i + 1, columnIndexes.sizeTable + 1);
 
@@ -103,7 +126,19 @@ function populateProductDescription(sourceSheet, headerRowsToSkip) {
 
       // Get product-level fields for the description
       const description = getCellValue(sourceSheet, i + 1, columnIndexes.description + 1);
-      const productCare = getCellValue(sourceSheet, i + 1, columnIndexes.productCare + 1);
+      let productCare = ''
+      console.log('getting productCare');
+      if (columnIndexes.productCare) {
+        productCare = getCellValue(sourceSheet, i + 1, columnIndexes.productCare + 1);
+      } else {
+        productCare = `革表面に跡や汚れなどが残る場合がありますが、天然皮革の特徴である不良ではございませんのでご了承ください。また、時間経過により金属の装飾や革の色が変化する場合がございますが、製品の欠陥ではありません。あらかじめご了承ください。
+1: 熱や直射日光に長時間さらされると革に変色が生じることがありますのでご注意ください。
+2: 変形の恐れがありますので、無理のない内容量でご使用ください。
+3: 水に弱い素材です。濡れた場合は柔らかい布で水気を除去した後、乾燥させてください。
+4: 使用しないときはダストバッグに入れ、涼しく風通しのいい場所で保管してください。
+5: アルコール、オイル、香水、化粧品などにより製品が損傷することがありますので、ご使用の際はご注意ください。`;
+      }
+      console.log(`productCare: ${productCare}`);
       const material = getCellValue(sourceSheet, i + 1, columnIndexes.material + 1);
       const madeIn = getCellValue(sourceSheet, i + 1, columnIndexes.madeIn + 1);
 
@@ -159,7 +194,7 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
       tags = `${tags}, ${getCellValue(sourceSheet, i + 1, columnIndexes.category2 + 1)}`;
     }
     if (columnIndexes.collection) {
-      tags = `${tags}, ${getCellValue(sourceSheet, i + 1, columnIndexes.collection + 1)}`;    
+      tags = `${tags}, ${getCellValue(sourceSheet, i + 1, columnIndexes.collection + 1)}`;
     }
 
     bodyHtml = productDescriptionMap[title];
