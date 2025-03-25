@@ -1,7 +1,7 @@
 const activateProducts = false;
 const vendor = 'GBH'
 
-const columnIndexes = {
+const gbhColumIndexes = {
   releaseDate: 1,           // Column B
   collection: 2,            // Column C
   category: 3,              // Column D
@@ -18,6 +18,32 @@ const columnIndexes = {
   material: 21,             // Column V
   madeIn: 22,               // Column W
 }
+
+// Column indexes, 0 base
+const kumeColumnIndexes = {
+  releaseDate: 1,           // Column B
+  title: 2,                 // Column C
+  option1Value: 3,          // Column D
+  option2Value: 4,          // Column E
+  variantSku: 5,            // Column F
+  category: 6,              // Column G
+  collection: 7,            // Column H
+  variantPrice: 10,         // Column K
+  variantInventoryQty: 11,  // Column L
+  description: 16,          // Column Q
+  productCare: 18,          // Column S
+  material: 19,             // Column T
+  sizeTable: 20,            // Column U
+  madeIn: 21,               // Column V
+};
+
+const columnIndexes = vendor == 'GBH' ? gbhColumIndexes : kumeColumnIndexes;
+
+// Column indexes, 1 base
+const columnsFromLastAvalableValue = [
+  3,
+  4
+]
 
 function populateProductDescription(sourceSheet, headerRowsToSkip) {
   productDescriptionMap = {};
@@ -90,12 +116,18 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
   for (let i = headerRowsToSkip; i < data.length; i++) {
     const row = data[i];
     const title = getCellValue(sourceSheet, i + 1, columnIndexes.title + 1);
-
     if (!title) {
       throw new Error('no title');
     }
+
+    const releaseDate = getCellValue(sourceSheet, i + 1, columnIndexes.releaseDate + 1).replace('\n', '');
+    if (releaseDate != '2025-03-17') {
+      console.log(`skipping row ${i}: ${releaseDate}`);
+      continue;
+    }
+
     const collection = getCellValue(sourceSheet, i + 1, columnIndexes.collection + 1);
-    const handle = `=concat(googletranslate(B${i + 2 - headerRowsToSkip},"ja","en"), " ${collection}")`;
+    const handle = `=googletranslate(INDIRECT(CONCAT("B", ROW())),"ja","en")`;
 
     const variantSize = row[columnIndexes.option2Value].trim();
     Logger.log(`${new Date(new Date().getTime()).toISOString()} --- processing ${title}`);
@@ -104,28 +136,20 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
     const option1Value = getCellValue(sourceSheet, i + 1, columnIndexes.option1Value + 1);
     let category = getCellValue(sourceSheet, i + 1, columnIndexes.category + 1);
     if (columnIndexes.category2) {
-      category = `${category}, ${getCellValue(sourceSheet, i + 1, columnIndexes.category2 + 1)}`;
+        category = `${category}, ${getCellValue(sourceSheet, i + 1, columnIndexes.category2 + 1)}`;
     }
 
     bodyHtml = productDescriptionMap[title];
-    let tags;
-    let status;
-    if (activateProducts) {
-      tags = `${category}, ${collection}`;
-      status = 'active';
-      tags = `${tags}, new`
-    } else {
-      const releaseDate = getCellValue(sourceSheet, i + 1, columnIndexes.releaseDate + 1).replace('\n', '');
-      tags = `${releaseDate}, ${category}, ${collection}, new`;
-      status = 'draft';
-    }
+    const tags = `${releaseDate}, ${category}, ${collection}, new`;
+    const status = activateProducts ? 'active' : 'draft';
 
     const variantSku = row[columnIndexes.variantSku];
     const variantInventoryQty = row[columnIndexes.variantInventoryQty];
     const variantPrice = row[columnIndexes.variantPrice];
 
     const csvRow = [
-      handle, title, bodyHtml, vendor, tags, 'True', 'カラー', option1Value.trim(), 'サイズ', variantSize.trim(),
+      handle, title, bodyHtml, vendor, tags, 'True', 'カラー', option1Value.trim(),
+      variantSize ? 'サイズ' : '', variantSize,
       variantSku.trim(), 'shopify', variantInventoryQty, 'deny', 'manual', variantPrice, 'True', 'True', status
     ];
     csvData.push(csvRow);
