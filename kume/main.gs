@@ -1,7 +1,7 @@
 const activateProducts = false;
 const vendor = 'KUME'
 
-const columnIndexes = {     // Column indexes, 0 base
+const columnIndexes = {
   releaseDate: 1,           // Column B
   title: 2,                 // Column C
   category: 3,              // Column D
@@ -17,6 +17,12 @@ const columnIndexes = {     // Column indexes, 0 base
   variantSku: 18,           // Column S
   variantInventoryQty: 19,  // Column T
 };
+
+// Column indexes, 1 base
+const columnsFromLastAvalableValue = [
+  3,
+  4
+]
 
 function populateProductDescription(sourceSheet, headerRowsToSkip) {
   productDescriptionMap = {};
@@ -99,13 +105,13 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
   console.log(`Starting to process each product`);
   for (let i = headerRowsToSkip; i < data.length; i++) {
     const row = data[i];
-    const handle = '=googletranslate(B' + (i + 2 - headerRowsToSkip) + ',"ja","en")';
+    const handle = `=googletranslate(INDIRECT(CONCAT("B", ROW())),"ja","en")`;
     const title = getCellValue(sourceSheet, i + 1, columnIndexes.title + 1);
 
-    let releaseDate = getCellValue(sourceSheet, i + 1, columnIndexes.releaseDate + 1);
-    if (!releaseDate.startsWith('2/21')) {
-      console.log(`breaking at ${i}`);
-      break;
+    const releaseDate = getCellValue(sourceSheet, i + 1, columnIndexes.releaseDate + 1);
+    if (!releaseDate.startsWith('3/31')) {
+      console.log(`skipping row ${i}, ${releaseDate}`);
+      continue;
     }
     if (!title) {
       throw new Error('no title');
@@ -126,16 +132,8 @@ function createProductImportCsvSheet(sourceSheetName, headerRowsToSkip) {
     }
 
     bodyHtml = productDescriptionMap[title];
-    let status;
-    if (activateProducts) {
-      status = 'active';
-    } else {
-      if (columnIndexes.releaseDate) {
-        tags = `${tags}, 2025-02-20`;
-      }
-      status = 'draft';
-    }
-    tags = `${tags}, new`;
+    tags = `${tags}, ${releaseDate}, new`;
+    const status = activateProducts ? 'active' : 'draft';
 
     const variantSku = row[columnIndexes.variantSku];
     if (!variantSku) {
